@@ -5,27 +5,11 @@
 #include <vector>
 #include <thread>
 #include <chrono>
-#include "custom_mutex.h"
 #include <mutex>
 #include <algorithm>
 #include <atomic>
 #include <windows.h>
 #include <condition_variable>
-
-
-class condition_wait {
-public:
-    explicit condition_wait(volatile bool& l_fork, volatile bool& r_fork) : l_fork(l_fork), r_fork(r_fork) {}
-    ~condition_wait() = default;
-
-    bool operator()() const volatile {
-        return l_fork && r_fork;
-    }
-private:
-    volatile bool &l_fork;
-    volatile bool &r_fork;
-
-};
 
 class philosophers_having_lunch {
 public:
@@ -111,17 +95,20 @@ private:
         m_cv.wait(lk, [&left_fork, &right_fork]() {
                         return left_fork && right_fork;
                      });
-        lk.unlock();
+        
         
         /// левая и правая вилка теперь занята 
         right_fork = false;
         left_fork = false;
-        m_cv.notify_all();
-    
+        lk.unlock();
+
         eating(vec_names[_idx]);
 
+        m_locker.lock();
         right_fork = true;
         left_fork = true;
+        m_locker.unlock();
+
         m_cv.notify_all();
     }  
 
